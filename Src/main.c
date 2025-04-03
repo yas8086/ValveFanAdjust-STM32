@@ -61,7 +61,7 @@
 /* USER CODE BEGIN PD */
 
 volatile  uint16_t temperature;              //FC温度
-uint8_t	  FC_Start_flag;          				   //FC启停标志
+uint8_t	  FC_Start_flag = 1;          				   //FC启停标志
 uint16_t  FC_I;                 				     //FC电流
 uint16_t  FC_U;                 				     //FC电压
 uint32_t  Load_power;                        //负载功率
@@ -75,9 +75,7 @@ uint16_t  shell_temperature;                         //外壳温度
 float     environment_temperature;                   //环境温度
 
 uint16_t  temperature_record[TEMPERATURE_NUMBER];    //每秒温度记录
-uint8_t   Exhaust_valves_flag;   					 //开启排气标志; 置1:进入排气;  置0：不需要排气
-uint8_t   Exhaust_status;       				   //排气阀开关状态
-uint8_t   Inlet_valves_flag;     					 //开启进气阀标志: 置1:需打开进气;  置0：不需要打开
+uint8_t   Exhaust_valves_flag = 0;   					 //开启排气标志; 置1:进入排气;  置0：不需要排气
 uint16_t  temperature_counter;						 //温度计数器(最大计数655.35秒)
 float     ntc_R;                                     //热敏电阻值（型号3950）
 float     shell_ntc_R;                               //热敏电阻值（型号3950）
@@ -100,16 +98,16 @@ uint8_t   temperature_tendency; 					 //温度走势 1:升温; 0:降温或稳定
 /* USER CODE BEGIN PV */
 bool 			FC_Start_flag_;											//开机标志位
 //排气阀-------------------------
-uint8_t   Exhaust_status;       				     	//排气阀开关状态
+uint8_t  Exhaust_status = 0;       				     	//排气阀开关状态
 uint8_t   Exhaust_valves_flag;   					 		//开启排气标志
 uint16_t  Exhaust_time_counter; 							//排气阀正常排气时间计数器
 //正常排气
 uint16_t  Exhaust_time_Normal=500;						//排气阀正常排气时间
-uint16_t  Exhaust_interval_Normal=12000;			//排气阀正常排气间隔
+uint16_t  Exhaust_interval_Normal=11000;			//排气阀正常排气间隔
 uint16_t  Exhaust_interval_Normal_counter; 		//排气阀正常排气间隔计数器
 //强制排气
 uint32_t  Exhaust_time_Specific=2000;					//排气阀强制排气时间
-uint32_t  Exhaust_interval_Specific=300000;		//排气阀强制排气间隔
+uint32_t  Exhaust_interval_Specific=60000;		//排气阀强制排气间隔
 uint32_t  Exhaust_interval_Specific_counter;	//排气阀强制排气间隔计数器
 //手动排气
 uint8_t   Exhaust_valves_Manual_flag;   			//手动开启排气标志
@@ -275,8 +273,8 @@ void USART1_Parameters_Send(void)
 	Plane_data[7] = shell_temperature & 0xff;
 	Plane_data[8] = (uint16_t)environment_temperature >> 8;
 	Plane_data[9] = (uint16_t)environment_temperature & 0xff;
-	Plane_data[10] = Exhaust_status >> 8;
-	Plane_data[11] = 0x00;
+	Plane_data[10] = 0x00;
+	Plane_data[11] = Exhaust_status;
 	uint16_t crc = crc16_calc(Plane_data, 12);
 	Plane_data[12] = crc >> 8;
 	Plane_data[13] = crc & 0xff;
@@ -345,14 +343,14 @@ void get_rec_data(void)
 				respondDeviceValue = 0x02;
 			}
 			else{
-				Exhaust_time_Normal = ((uint16_t)USART1_REC_BUF[3] << 8) | USART1_REC_BUF[4];
-				Exhaust_interval_Normal = ((uint16_t)USART1_REC_BUF[5] << 8) | USART1_REC_BUF[6];
+				Exhaust_interval_Normal = ((uint16_t)USART1_REC_BUF[3] << 8) | USART1_REC_BUF[4];
+				Exhaust_time_Normal = ((uint16_t)USART1_REC_BUF[5] << 8) | USART1_REC_BUF[6];
 				respondDeviceID = USART1_REC_BUF[2];
 				respondDeviceValue = 0x01;
 			}
 		}
 		//手动排气通讯样例：0C 02 03 00 00 00 01 22 53
-		else if(USART1_REC_BUF[1] == 0x03)
+		else if(USART1_REC_BUF[2] == 0x03)
 		{
 			RecCrc = ((uint16_t)USART1_REC_BUF[7] << 8) | USART1_REC_BUF[8];
 			CalcCrc = crc16_calc(USART1_REC_BUF, 7);
@@ -388,7 +386,7 @@ void Task_USART1_Respond(void)
 		get_rec_data();
 		memset(USART1_REC_BUF, 0, sizeof (USART1_REC_BUF));
 		if(sendDataFlag == true){
-			response_data_send(respondDeviceID,respondDeviceValue);
+//			response_data_send(respondDeviceID,respondDeviceValue);
 			sendDataFlag = false;
 		}
 		USART1_REC_STA = 0;
@@ -407,7 +405,6 @@ void Task_Exhaust_valves_control(void)
 		{
 			EXHAUST_ON;
 			Exhaust_time_counter = 0;
-			Exhaust_valves_flag = 0;
 			Exhaust_status = 1;
 			Exhaust_interval_Normal_counter = 0;//
 		}
@@ -427,13 +424,14 @@ void Task_Exhaust_valves_control(void)
 			EXHAUST_ON;
 			Exhaust_time_counter = 0; 
 			Exhaust_valves_flag = 0;
-			Exhaust_status = 1;		
+			Exhaust_status = 1;	
+			Exhaust_interval_Normal_counter = 0;		//重置间隔计数器	
 		}
 		
 		//结束自动排气：区分强制排气和正常排气
 		if(Exhaust_interval_Specific_counter > Exhaust_interval_Specific)
 		{
-			if( (Exhaust_time_counter > Exhaust_time_Specific)  && Exhaust_status == 1)
+			if( (Exhaust_time_counter > Exhaust_time_Specific)  && Exhaust_status == 1 && Exhaust_valves_Manual_flag == 0)
 			{
 				Exhaust_time_counter = 0;   
 				Exhaust_interval_Specific_counter = 0; 
@@ -443,7 +441,7 @@ void Task_Exhaust_valves_control(void)
 		}
 		else 
 		{
-			if( (Exhaust_time_counter > Exhaust_time_Normal)  && Exhaust_status == 1)
+			if( (Exhaust_time_counter > Exhaust_time_Normal)  && Exhaust_status == 1 && Exhaust_valves_Manual_flag == 0)
 			{
 				Exhaust_time_counter = 0;	
 				Exhaust_status = 0;		
@@ -462,24 +460,17 @@ void Task_Exhaust_valves_count(void)
 		Exhaust_valves_flag = 1;
 	}
 	//强制排气时间到
-	if( (Exhaust_specific_counter > EXHAUST_SPECIFIC_TIME) && Exhaust_valves_flag == 0 && Exhaust_status == 0)
+	if( (Exhaust_interval_Specific_counter > Exhaust_interval_Specific) && Exhaust_valves_flag == 0 && Exhaust_status == 0)
 	{
 		Exhaust_valves_flag = 1;
-	}
-			
+	}		
 }
 
 void Task_NTC_temp(void)
-{
-	printf("NTC任务\n");
-	
-
+{	
 		temperature = ((recurbinary(Thermistor3950, ntc_R, 0, 270) - 30)*100); //单位:100 * ℃
 		
 		shell_temperature = (recurbinary(Thermistor3950, shell_ntc_R, 0, 270) - 30)*100;	//单位:100 * ℃
-					
-		
-
 }
 
 
@@ -494,7 +485,7 @@ static TASK_COMPONENTS TaskComps[] =
   {0, 30, 30, Task_Get_ADC_data},                           // ADC采集数据每(0.03*ADC_AVERAGE_TIME)秒一次
   {0, 100, 100, Task_USART1_Respond},                     	// 串口1数据发送
   {0, 200, 200, Task_NTC_temp},           			  					// 每0.2s刷新一次温度值;每5s刷新一次pretemperature;每1s刷新一次temperature_record
-	{0, 75, 75, Task_Exhaust_valves_control},                 // FC排气到时，控制排气持续时间(理论排气0.225s）
+	{0, 10, 10, Task_Exhaust_valves_control},                 // FC排气到时，控制排气持续时间(理论排气0.225s）
 	{0, 100, 100, Task_Exhaust_valves_count},    			  			// FC排气计数器控制排气标志位
 	{0, 1500, 1500,Task_environment_temperature}			  			// 环境温度采集
 };
@@ -554,9 +545,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		Exhaust_time_Manual_counter++;    			//手动排气时间计数器
 		Exhaust_interval_Normal_counter++;     	//正常排气间隔计数器
 		Exhaust_interval_Specific_counter++;   	//强制排气间隔计数器
-		Exhaust_specific_counter++;     				//排气阀特殊计数器（定时一段时间内强排几秒）
 		
-		Exhaust_interval_Normal_counter++;
 		
 		if(CntRx1)				    
 			{
@@ -576,6 +565,7 @@ void Initialize_function(void)
 	PWM_VAL = MIN_PWM_VAL;
 	TIM_SetCompare3(TIM1,PWM_VAL);
 	FAN_ON;//打开电堆风扇
+	EXHAUST_OFF;
 }
 
 /* USER CODE END 0 */
