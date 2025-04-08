@@ -103,11 +103,11 @@ uint8_t   Exhaust_valves_flag;   					 		//开启排气标志
 uint16_t  Exhaust_time_counter; 							//排气阀正常排气时间计数器
 //正常排气
 uint16_t  Exhaust_time_Normal=500;						//排气阀正常排气时间
-uint16_t  Exhaust_interval_Normal=11000;			//排气阀正常排气间隔
+uint16_t  Exhaust_interval_Normal=10000;			//排气阀正常排气间隔
 uint16_t  Exhaust_interval_Normal_counter; 		//排气阀正常排气间隔计数器
 //强制排气
 uint32_t  Exhaust_time_Specific=2000;					//排气阀强制排气时间
-uint32_t  Exhaust_interval_Specific=60000;		//排气阀强制排气间隔
+uint32_t  Exhaust_interval_Specific=300000;		//排气阀强制排气间隔
 uint32_t  Exhaust_interval_Specific_counter;	//排气阀强制排气间隔计数器
 //手动排气
 uint8_t   Exhaust_valves_Manual_flag;   			//手动开启排气标志
@@ -415,6 +415,7 @@ void Task_Exhaust_valves_control(void)
 			Exhaust_status = 0;			
 			EXHAUST_OFF;
 			Exhaust_valves_Manual_flag = 0;
+			Exhaust_interval_Normal_counter = 0;
 		}
 		
 		
@@ -435,7 +436,8 @@ void Task_Exhaust_valves_control(void)
 			{
 				Exhaust_time_counter = 0;   
 				Exhaust_interval_Specific_counter = 0; 
-				Exhaust_status = 0;        
+				Exhaust_status = 0;
+				Exhaust_interval_Normal_counter = 0;        
 				EXHAUST_OFF; 
 			}
 		}
@@ -444,7 +446,8 @@ void Task_Exhaust_valves_control(void)
 			if( (Exhaust_time_counter > Exhaust_time_Normal)  && Exhaust_status == 1 && Exhaust_valves_Manual_flag == 0)
 			{
 				Exhaust_time_counter = 0;	
-				Exhaust_status = 0;		
+				Exhaust_status = 0;	
+				Exhaust_interval_Normal_counter = 0;				
 				EXHAUST_OFF;
 			}
 		}
@@ -479,6 +482,11 @@ void Task_environment_temperature(void)
 	environment_temperature = DS18B20_Get_TempA();
 }
 
+void Task_Fan_PWM(void)
+{
+	TIM_SetCompare3(TIM1,PWM_VAL);
+}
+
 //第三个数字=n，表示n毫秒执行一次
 static TASK_COMPONENTS TaskComps[] = 
 {
@@ -487,7 +495,8 @@ static TASK_COMPONENTS TaskComps[] =
   {0, 200, 200, Task_NTC_temp},           			  					// 每0.2s刷新一次温度值;每5s刷新一次pretemperature;每1s刷新一次temperature_record
 	{0, 10, 10, Task_Exhaust_valves_control},                 // FC排气到时，控制排气持续时间(理论排气0.225s）
 	{0, 100, 100, Task_Exhaust_valves_count},    			  			// FC排气计数器控制排气标志位
-	{0, 1500, 1500,Task_environment_temperature}			  			// 环境温度采集
+	{0, 1500, 1500,Task_environment_temperature},			  			// 环境温度采集
+	{0, 200, 200,Task_Fan_PWM}			  			// 环境温度采集
 };
 
 /**************************************************************************************

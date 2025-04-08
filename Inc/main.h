@@ -125,7 +125,7 @@ typedef struct _TASK_COMPONENTS
 #define MIN_PWM           			 0     		 //最小PWM
 #define MAX_PWM            			 100   		 //最大PWM
 #define USART1_MAX_RECV_LEN      20
-#define TASKS_MAX                6
+#define TASKS_MAX                7
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
