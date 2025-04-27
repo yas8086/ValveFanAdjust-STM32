@@ -102,8 +102,8 @@ uint8_t  Exhaust_status = 0;       				     	//排气阀开关状态
 uint8_t   Exhaust_valves_flag;   					 		//开启排气标志
 uint16_t  Exhaust_time_counter; 							//排气阀正常排气时间计数器
 //正常排气
-uint16_t  Exhaust_time_Normal=500;						//排气阀正常排气时间
-uint16_t  Exhaust_interval_Normal=10000;			//排气阀正常排气间隔
+uint16_t  Exhaust_time_Normal=400;						//排气阀正常排气时间
+uint16_t  Exhaust_interval_Normal=15000;			//排气阀正常排气间隔
 uint16_t  Exhaust_interval_Normal_counter; 		//排气阀正常排气间隔计数器
 //强制排气
 uint32_t  Exhaust_time_Specific=2000;					//排气阀强制排气时间
@@ -155,8 +155,7 @@ float Thermistor3950[]={
 		0.0745,	0.0732,	0.0719,	0.0706,	0.0694,	0.0682,	0.0671,	0.0659,	0.0648,	0.0637,	
 		0.0626,	0.0616,	0.0606,	0.0596,	0.0586,	0.0576,	0.0567,	0.0557,	0.0548,	0.0539,	
 		0.0531,	0.0522,	0.0514,	0.0506,	0.0498,	0.049,	0.0482,	0.0474,	0.0467,	0.046,	
-		0.0453,	0.0446,	0.0439,	0.0432,	0.0425,	0.0419,	0.0413,	0.0406,	0.04,	0.0394,	
-		0.0388
+		0.0453,	0.0446,	0.0439,	0.0432,	0.0425,	0.0419,	0.0413,	0.0406,	0.04,	0.0394
 	};
 
 //函数定义
@@ -269,8 +268,8 @@ void USART1_Parameters_Send(void)
 	Plane_data[3] = 0x04;		//读取个数
 	Plane_data[4] = (temperature+4000) >> 8;
 	Plane_data[5] = (temperature+4000) & 0xff;
-	Plane_data[6] = shell_temperature >> 8;
-	Plane_data[7] = shell_temperature & 0xff;
+	Plane_data[6] = (shell_temperature+4000) >> 8;
+	Plane_data[7] = (shell_temperature+4000) & 0xff;
 	Plane_data[8] = (uint16_t)environment_temperature >> 8;
 	Plane_data[9] = (uint16_t)environment_temperature & 0xff;
 	Plane_data[10] = 0x00;
@@ -279,7 +278,7 @@ void USART1_Parameters_Send(void)
 	Plane_data[12] = crc >> 8;
 	Plane_data[13] = crc & 0xff;
 
-	HAL_UART_Transmit(&huart1,Plane_data,14,1000);
+	HAL_UART_Transmit(&huart1,Plane_data,14,0xFFFF);
 
 #endif
 
